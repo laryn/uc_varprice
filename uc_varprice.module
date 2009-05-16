@@ -13,14 +13,117 @@
  * Summary of alterations:
  * 1) Alters the product feature add form to restrict multiple Variable Price
  *      features from being added to a single product.
+ * 2) Alters the add to cart form for variable priced products.
  */
 function uc_varprice_form_alter(&$form, &$form_state, $form_id) {
-  // Alter the product feature add form.
+  // 1) Alter the product feature add form.
   if ($form_id == 'uc_product_feature_add_form') {
     // If a Variable Price feature has already been added to this product...
     if (db_result(db_query("SELECT COUNT(*) FROM {uc_product_features} WHERE nid = %d AND fid = '%s'", arg(1), 'varprice'))) {
       // Remove Variable Price from the available list of features to add.
       unset($form['feature']['#options']['varprice']);
+    }
+  }
+
+  // 2) Alter the add to cart form.
+  if (strpos($form_id, 'uc_product_add_to_cart_form_') === 0) {
+    $data = uc_varprice_product_load($form['nid']['#value']);
+
+    $description = array();
+
+    if (!empty($data->price_minimum)) {
+      $description[] = t('Minimum: @price', array('@price' => uc_currency_format($data->price_minimum)));
+    }
+    if (!empty($data->price_maximum)) {
+      $description[] = t('Maximum: @price', array('@price' => uc_currency_format($data->price_maximum)));
+    }
+
+    // Add the amount textfield to the add to cart form.
+    $form['varprice'] = array(
+      '#type' => 'textfield',
+      '#title' => $data && !empty($data->amount_title) ? $data->amount_title : t('Amount'),
+      '#description' => implode('<br />', $description),
+      '#default_value' => $data ? $data->price_default : variable_get('uc_varprice_global_default', '0'),
+      '#size' => 8,
+      '#weight' => -5,
+      '#field_prefix' => variable_get('uc_sign_after_amount', FALSE) ? '' : variable_get('uc_currency_sign', '$'),
+      '#field_suffix' => variable_get('uc_sign_after_amount', FALSE) ? variable_get('uc_currency_sign', '$') : '',
+    );
+  }
+}
+
+/**
+ * Implementation of hook_nodeapi().
+ *
+ * Summary of alterations:
+ * 1) Removes price displays from variable priced product nodes.
+ */
+function uc_varprice_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  // When the node is being prepped for display...
+  if ($op == 'view') {
+    // If this node has a variable price product feature...
+    if (db_result(db_query("SELECT pfid FROM {uc_product_features} WHERE fid = 'varprice' AND nid = %d", $node->nid))) {
+      // Hide all the prices from display.
+      $node->content['cost']['#access'] = FALSE;
+      $node->content['list_price']['#access'] = FALSE;
+      $node->content['sell_price']['#access'] = FALSE;
+      $node->content['display_price']['#access'] = FALSE;
+    }
+  }
+}
+
+/**
+ * Implementation of hook_add_to_cart_data().
+ */
+function uc_varprice_add_to_cart_data($form_values) {
+  // Store the customer entered price in the product's data array.
+  return array('varprice' => $form_values['varprice']);
+}
+
+/**
+ * Implementation of hook_add_to_cart().
+ */
+function uc_varprice_add_to_cart($nid, $qty, $data) {
+  $result = array();
+
+  // If there is Variable Price data for this product...
+  if (isset($data['varprice'])) {
+    $message = '';
+
+    // Load the product feature data.
+    $vp_data = uc_varprice_product_load($nid);
+
+    // Fail if the customer failed to enter a price.
+    if (empty($data['varprice']) || $data['varprice'] == 0) {
+      $message = t('You must specify a price.');
+    }
+    // Fail if the customer entered a price lower than the minimum.
+    elseif (!empty($vp_data->price_minimum) && $data['varprice'] < $vp_data->price_minimum) {
+      $message = t('You must specify an amount greater than or equal to @price.', array('@price' => uc_currency_format($vp_data->price_minimum)));
+    }
+    // Fail if the customer entered a price above the maximum.
+    elseif (!empty($vp_data->price_maximum) && $data['varprice'] > $vp_data->price_maximum) {
+      $message = t('You must specify an amount less than or equal to @price.', array('@price' => uc_currency_format($vp_data->price_maximum)));
+    }
+
+    // If an error message was set, return the failure notification.
+    if (!empty($message)) {
+      return array(array('success' => FALSE, 'message' => $message));
+    }
+  }
+}
+
+
+/**
+ * Implementation of hook_cart_item().
+ */
+function uc_varprice_cart_item($op, &$item) {
+  // When the cart product is being loaded...
+  if ($op == 'load') {
+    // If the product has a variable price set...
+    if (!empty($item->data['varprice'])) {
+      // Update the cart item's price to the entered price value.
+      $item->price = $item->data['varprice'];
     }
   }
 }
@@ -69,7 +172,6 @@ function uc_varprice_feature_form($form_state, $node, $feature) {
 
   // Load the Variable Price data specific to this product.
   $data = db_fetch_object(db_query("SELECT * FROM {uc_varprice_products} WHERE pfid = %d", $feature['pfid']));
-  // drupal_set_message('<pre>'. print_r($data, TRUE) .'</pre>');
 
   $form['nid'] = array(
     '#type' => 'value',
@@ -200,5 +302,10 @@ function uc_varprice_feature_form_submit($form, &$form_state) {
 // Variable Price product feature delete function.
 function uc_varprice_feature_delete($feature) {
   db_query("DELETE FROM {uc_varprice_products} WHERE pfid = %d", $feature['pfid']);
+}
+
+// Load the product feature data for a given node.
+function uc_varprice_product_load($nid) {
+  return db_fetch_object(db_query("SELECT vp.* FROM {uc_product_features} AS pf LEFT JOIN {uc_varprice_products} AS vp ON pf.pfid = vp.pfid WHERE pf.fid = 'varprice' AND pf.nid = %d", $nid));
 }
 
