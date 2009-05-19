@@ -176,7 +176,9 @@ function uc_varprice_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
  */
 function uc_varprice_add_to_cart_data($form_values) {
   // Store the customer entered price in the product's data array.
-  return array('varprice' => $form_values['varprice'], 'uniqid' => uniqid());
+  if (!empty($form_values['varprice'])) {
+    return array('varprice' => $form_values['varprice'], 'uniqid' => uniqid());
+  }
 }
 
 /**
