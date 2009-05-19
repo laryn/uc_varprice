@@ -42,26 +42,28 @@ function uc_varprice_form_alter(&$form, &$form_state, $form_id) {
   if (strpos($form_id, 'uc_product_add_to_cart_form_') === 0) {
     $data = uc_varprice_product_load($form['nid']['#value']);
 
-    $description = array();
+    if ($data) {
+      $description = array();
 
-    if (!empty($data->price_minimum)) {
-      $description[] = t('Minimum: @price', array('@price' => uc_currency_format($data->price_minimum)));
-    }
-    if (!empty($data->price_maximum)) {
-      $description[] = t('Maximum: @price', array('@price' => uc_currency_format($data->price_maximum)));
-    }
+      if (!empty($data->price_minimum)) {
+        $description[] = t('Minimum: @price', array('@price' => uc_currency_format($data->price_minimum)));
+      }
+      if (!empty($data->price_maximum)) {
+        $description[] = t('Maximum: @price', array('@price' => uc_currency_format($data->price_maximum)));
+      }
 
-    // Add the amount textfield to the add to cart form.
-    $form['varprice'] = array(
-      '#type' => 'textfield',
-      '#title' => $data && !empty($data->amount_title) ? $data->amount_title : t('Amount'),
-      '#description' => implode('<br />', $description),
-      '#default_value' => $data ? $data->price_default : variable_get('uc_varprice_global_default', '0'),
-      '#size' => 8,
-      '#weight' => -5,
-      '#field_prefix' => variable_get('uc_sign_after_amount', FALSE) ? '' : variable_get('uc_currency_sign', '$'),
-      '#field_suffix' => variable_get('uc_sign_after_amount', FALSE) ? variable_get('uc_currency_sign', '$') : '',
-    );
+      // Add the amount textfield to the add to cart form.
+      $form['varprice'] = array(
+        '#type' => 'textfield',
+        '#title' => $data && !empty($data->amount_title) ? $data->amount_title : t('Amount'),
+        '#description' => implode('<br />', $description),
+        '#default_value' => $data ? $data->price_default : variable_get('uc_varprice_global_default', '0'),
+        '#size' => 8,
+        '#weight' => -5,
+        '#field_prefix' => variable_get('uc_sign_after_amount', FALSE) ? '' : variable_get('uc_currency_sign', '$'),
+        '#field_suffix' => variable_get('uc_sign_after_amount', FALSE) ? variable_get('uc_currency_sign', '$') : '',
+      );
+    }
   }
 
   // 3) Disable the appropriate Qty. fields on the cart view form.
