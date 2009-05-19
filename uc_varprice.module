@@ -136,6 +136,7 @@ function uc_varprice_product_class_submit($form, &$form_state) {
  *
  * Summary of alterations:
  * 1) Removes price displays from variable priced product nodes.
+ * 2) Inserts Variable Price product feature on product node creation.
  */
 function uc_varprice_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
   // When the node is being prepped for display...
