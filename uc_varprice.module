@@ -55,7 +55,7 @@ function uc_varprice_form_alter(&$form, &$form_state, $form_id) {
       // Add the amount textfield to the add to cart form.
       $form['varprice'] = array(
         '#type' => 'textfield',
-        '#title' => $data && !empty($data->amount_title) ? $data->amount_title : t('Amount'),
+        '#title' => !empty($data->amount_title) ? $data->amount_title : t('Amount'),
         '#description' => implode('<br />', $description),
         '#default_value' => $data ? $data->price_default : variable_get('uc_varprice_global_default', '0'),
         '#size' => 8,
@@ -63,6 +63,11 @@ function uc_varprice_form_alter(&$form, &$form_state, $form_id) {
         '#field_prefix' => variable_get('uc_sign_after_amount', FALSE) ? '' : variable_get('uc_currency_sign', '$'),
         '#field_suffix' => variable_get('uc_sign_after_amount', FALSE) ? variable_get('uc_currency_sign', '$') : '',
       );
+
+      // Relabel the "Add to cart" button
+      if (!empty($data->add_to_cart_title)) {
+        $form['submit']['#value'] = $data->add_to_cart_title;
+      }
     }
   }
 
@@ -422,4 +427,3 @@ function uc_varprice_product_load($nid) {
 function theme_varprice_qty($element) {
   return $element['#default_value'];
 }
-
