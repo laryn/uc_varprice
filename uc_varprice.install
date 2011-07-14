@@ -1,10 +1,14 @@
 <?php
+// $Id: uc_varprice.install,v 1.1 2009/05/15 21:40:04 rszrama Exp $
 
 /**
  * @file
  * Installs the necessary table for the Variable Price product features.
  */
 
+/**
+ * Implementation of hoook_schema()
+ */
 function uc_varprice_schema() {
   $schema = array();
 
@@ -22,7 +26,7 @@ function uc_varprice_schema() {
         'default' => 0,
       ),
       'price_default' => array(
-        'description' => t('Default product price.'),
+        'description' => 'Default product price.',
         'type' => 'numeric',
         'precision' => 10,
         'scale' => 2,
@@ -30,14 +34,14 @@ function uc_varprice_schema() {
         'default' => 0.0,
       ),
       'price_minimum' => array(
-        'description' => t('Minimum product price.'),
+        'description' => 'Minimum product price.',
         'type' => 'varchar',
         'length' => 255,
         'not null' => TRUE,
         'default' => '',
       ),
       'price_maximum' => array(
-        'description' => t('Maximum product price.'),
+        'description' => 'Maximum product price.',
         'type' => 'varchar',
         'length' => 255,
         'not null' => TRUE,
@@ -65,12 +69,12 @@ function uc_varprice_schema() {
   return $schema;
 }
 
-function uc_varprice_install() {
-  drupal_install_schema('uc_varprice');
-}
-
+/**
+ * Implementation of hook_uninstall()
+ */
 function uc_varprice_uninstall() {
-  drupal_uninstall_schema('uc_varprice');
-  db_query("DELETE FROM {uc_product_features} WHERE fid = 'varprice'");
+  db_delete('uc_product_features')
+    ->condition('fid', 'varprice')
+    ->execute();
   variable_del('uc_varprice_global_default');
 }

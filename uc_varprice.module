@@ -1,5 +1,4 @@
 <?php
-
 /**
  * @file
  * Defines a product feature to turn any product into a variable priced product.
@@ -7,18 +6,18 @@
 
 
 /**
- * Implementation of hook_theme().
+ * Implements hook_theme().
  */
 function uc_varprice_theme() {
   return array(
     'varprice_qty' => array(
-      'arguments' => array('form' => NULL),
+      'render element' => 'form',
     ),
   );
 }
 
 /**
- * Implementation of hook_form_alter().
+ * Implements hook_form_alter().
  *
  * Summary of alterations:
  * 1) Alters the product feature add form to restrict multiple Variable Price
@@ -31,7 +30,7 @@ function uc_varprice_form_alter(&$form, &$form_state, $form_id) {
   // 1) Alter the product feature add form.
   if ($form_id == 'uc_product_feature_add_form') {
     // If a Variable Price feature has already been added to this product...
-    if (db_result(db_query("SELECT COUNT(*) FROM {uc_product_features} WHERE nid = %d AND fid = '%s'", arg(1), 'varprice'))) {
+    if (db_query("SELECT COUNT(*) FROM {uc_product_features} WHERE nid = :nid AND fid = :fid", array(':nid' => arg(1), ':fid' => 'varprice'))->fetchField()) {
       // Remove Variable Price from the available list of features to add.
       unset($form['feature']['#options']['varprice']);
     }
@@ -54,7 +53,7 @@ function uc_varprice_form_alter(&$form, &$form_state, $form_id) {
       // Add the amount textfield to the add to cart form.
       $form['varprice'] = array(
         '#type' => 'textfield',
-        '#title' => !empty($data->amount_title) ? $data->amount_title : t('Amount'),
+        '#title' => $data && !empty($data->amount_title) ? $data->amount_title : t('Amount'),
         '#description' => implode('<br />', $description),
         '#default_value' => $data ? $data->price_default : variable_get('uc_varprice_global_default', '0'),
         '#size' => 8,
@@ -62,11 +61,6 @@ function uc_varprice_form_alter(&$form, &$form_state, $form_id) {
         '#field_prefix' => variable_get('uc_sign_after_amount', FALSE) ? '' : variable_get('uc_currency_sign', '$'),
         '#field_suffix' => variable_get('uc_sign_after_amount', FALSE) ? variable_get('uc_currency_sign', '$') : '',
       );
-
-      // Relabel the "Add to cart" button
-      if (!empty($data->add_to_cart_title)) {
-        $form['submit']['#value'] = $data->add_to_cart_title;
-      }
     }
   }
 
@@ -86,15 +80,14 @@ function uc_varprice_form_alter(&$form, &$form_state, $form_id) {
   // 4) Alter the product class form to set default donations.
   if ($form_id == 'uc_product_class_form') {
     // Add some helper JS to the form.
-    drupal_add_js(drupal_get_path('module', 'uc_varprice') .'/uc_varprice.js');
+    drupal_add_js(drupal_get_path('module', 'uc_varprice') . '/uc_varprice.js');
 
-    $data = variable_get('ucvp_class_def_'. $form['pcid']['#value'], array());
-
-    if (!empty($data)) {
-      $data = (object) unserialize($data);
-    }
-    else {
-      $data = FALSE;
+    $data = FALSE;
+    if (!empty($form['pcid']['#value'])) {
+      $class_defaults = variable_get('ucvp_class_def_' . $form['pcid']['#value'], array());
+      if (!empty($class_defaults)) {
+        $data = (object) unserialize($class_defaults);
+      }
     }
 
     $form['varprice'] = array(
@@ -117,7 +110,9 @@ function uc_varprice_form_alter(&$form, &$form_state, $form_id) {
   }
 }
 
-// Submit handler for the product class form for default Variable Price features.
+/**
+ * Submit handler for the product class form for default Variable Price features.
+ */
 function uc_varprice_product_class_submit($form, &$form_state) {
   if ($form_state['values']['default_varprice']) {
     $data = array(
@@ -130,36 +125,36 @@ function uc_varprice_product_class_submit($form, &$form_state) {
       'amount_title' => $form_state['values']['override_amount_title'] ? $form_state['values']['amount_title'] : '',
     );
 
-    variable_set('ucvp_class_def_'. $form_state['values']['pcid'], serialize($data));
+    variable_set('ucvp_class_def_' . $form_state['values']['pcid'], serialize($data));
   }
   else {
-    variable_del('ucvp_class_def_'. $form_state['values']['pcid']);
+    variable_del('ucvp_class_def_' . $form_state['values']['pcid']);
   }
 }
 
 /**
- * Implementation of hook_nodeapi().
- *
+ * Implements hook_node_view().
  * Summary of alterations:
  * 1) Removes price displays from variable priced product nodes.
  * 2) Inserts Variable Price product feature on product node creation.
  */
-function uc_varprice_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
-  // When the node is being prepped for display...
-  if ($op == 'view') {
-    // If this node has a variable price product feature...
-    if (db_result(db_query("SELECT pfid FROM {uc_product_features} WHERE fid = 'varprice' AND nid = %d", $node->nid))) {
-      // Hide all the prices from display.
-      $node->content['cost']['#access'] = FALSE;
-      $node->content['list_price']['#access'] = FALSE;
-      $node->content['sell_price']['#access'] = FALSE;
-      $node->content['display_price']['#access'] = FALSE;
-    }
+function uc_varprice_node_view($node, $view_mode = 'full') {
+  // If this node has a variable price product feature...
+  if (db_query("SELECT pfid FROM {uc_product_features} WHERE fid = :fid AND nid = :nid", array(':fid' => 'varprice', ':nid' => $node->nid))->fetchField()) {
+    // Hide all the prices from display.
+    $node->content['cost']['#access'] = FALSE;
+    $node->content['list_price']['#access'] = FALSE;
+    $node->content['sell_price']['#access'] = FALSE;
+    $node->content['display_price']['#access'] = FALSE;
   }
+}
 
-  // When a product node is created...
-  if ($op == 'insert' && uc_product_is_product($node)) {
-    $data = variable_get('ucvp_class_def_'. $node->type, array());
+/**
+ * Implements hook_node_insert().
+ */
+function uc_varprice_node_insert($node) {
+  if (uc_product_is_product($node)) {
+    $data = variable_get('ucvp_class_def_' . $node->type, array());
 
     // If the product class has a default Variable Price product feature...
     if ($data) {
@@ -176,9 +171,9 @@ function uc_varprice_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
 }
 
 /**
- * Implementation of hook_add_to_cart_data().
+ * Implements hook_uc_add_to_cart_data().
  */
-function uc_varprice_add_to_cart_data($form_values) {
+function uc_varprice_uc_add_to_cart_data($form_values) {
   // Store the customer entered price in the product's data array.
   if (!empty($form_values['varprice'])) {
     return array('varprice' => $form_values['varprice'], 'uniqid' => uniqid());
@@ -186,9 +181,9 @@ function uc_varprice_add_to_cart_data($form_values) {
 }
 
 /**
- * Implementation of hook_add_to_cart().
+ * Implements hook_uc_add_to_cart().
  */
-function uc_varprice_add_to_cart($nid, $qty, $data) {
+function uc_varprice_uc_add_to_cart($nid, $qty, $data) {
   $result = array();
 
   // If there is Variable Price data for this product...
@@ -213,16 +208,15 @@ function uc_varprice_add_to_cart($nid, $qty, $data) {
 
     // If an error message was set, return the failure notification.
     if (!empty($message)) {
-      return array(array('success' => FALSE, 'message' => $message));
+      return array(array('success' => FALSE, 'message' => $message, 'silent' => FALSE));
     }
   }
 }
 
-
 /**
- * Implementation of hook_cart_item().
+ * Implements hook_uc_cart_item().
  */
-function uc_varprice_cart_item($op, &$item) {
+function uc_varprice_uc_cart_item($op, $item) {
   // When the cart product is being loaded...
   if ($op == 'load') {
     // If the product has a variable price set...
@@ -234,9 +228,9 @@ function uc_varprice_cart_item($op, &$item) {
 }
 
 /**
- * Implementation of hook_product_feature().
+ * Implements hook_uc_product_feature().
  */
-function uc_varprice_product_feature() {
+function uc_varprice_uc_product_feature() {
   $features = array();
 
   $features[] = array(
@@ -251,7 +245,9 @@ function uc_varprice_product_feature() {
   return $features;
 }
 
-// Adds settings to the product features form for UC Variable Price.
+/**
+ * Adds settings to the product features form for UC Variable Price.
+ */
 function uc_varprice_settings() {
   $form = array();
 
@@ -268,15 +264,26 @@ function uc_varprice_settings() {
   return $form;
 }
 
-// Settings form for individual Variable Price product features.
-function uc_varprice_feature_form($form_state, $node, $feature) {
-  $form = array();
-
+/**
+ * Settings form for individual Variable Price product features.
+ */
+function uc_varprice_feature_form($form, &$form_state, $node, $feature) {
   // Add some helper JS to the form.
-  drupal_add_js(drupal_get_path('module', 'uc_varprice') .'/uc_varprice.js');
+  drupal_add_js(drupal_get_path('module', 'uc_varprice') . '/uc_varprice.js');
 
   // Load the Variable Price data specific to this product.
-  $data = db_fetch_object(db_query("SELECT * FROM {uc_varprice_products} WHERE pfid = %d", $feature['pfid']));
+  if (!empty($feature)) {
+    $varprice_feature = db_query('SELECT * FROM {uc_varprice_products} WHERE pfid = :pfid', array(':pfid' => $feature['pfid']))->fetchObject();
+  }
+  else {
+    $varprice_feature = new stdClass();
+    $varprice_feature->pfid = NULL;
+    $varprice_feature->price_default = variable_get('uc_varprice_global_default', '0');
+    $varprice_feature->price_minimum = '';
+    $varprice_feature->price_maximum = '';
+    $varprice_feature->add_to_cart_title = t('Add to cart');
+    $varprice_feature->amount_title = t('Amount');
+  }
 
   $form['nid'] = array(
     '#type' => 'value',
@@ -284,15 +291,15 @@ function uc_varprice_feature_form($form_state, $node, $feature) {
   );
   $form['pfid'] = array(
     '#type' => 'value',
-    '#value' => $data ? $data->pfid : '',
+    '#value' => $varprice_feature ? $varprice_feature->pfid : '',
   );
 
-  $form += _uc_varprice_feature_form($data);
+  $form += _uc_varprice_feature_form($varprice_feature);
 
-  return uc_product_feature_form($form);
+  return $form;
 }
 
-function _uc_varprice_feature_form($data = FALSE) {
+function _uc_varprice_feature_form($varprice_feature = FALSE) {
   $form = array();
 
   $form['prices'] = array(
@@ -304,7 +311,7 @@ function _uc_varprice_feature_form($data = FALSE) {
     '#title' => t('Default price'),
     '#size' => 8,
     '#description' => t('The default price for this variable priced products.'),
-    '#default_value' => $data ? $data->price_default : variable_get('uc_varprice_global_default', '0'),
+    '#default_value' => $varprice_feature ? $varprice_feature->price_default : variable_get('uc_varprice_global_default', '0'),
     '#field_prefix' => variable_get('uc_sign_after_amount', FALSE) ? '' : variable_get('uc_currency_sign', '$'),
     '#field_suffix' => variable_get('uc_sign_after_amount', FALSE) ? variable_get('uc_currency_sign', '$') : '',
   );
@@ -313,7 +320,7 @@ function _uc_varprice_feature_form($data = FALSE) {
     '#title' => t('Minimum price'),
     '#size' => 8,
     '#description' => t('The minimum price required for this product to be added to the cart.<br />Leave blank for no minimum.'),
-    '#default_value' => $data ? $data->price_minimum : '',
+    '#default_value' => $varprice_feature ? $varprice_feature->price_minimum : '',
     '#field_prefix' => variable_get('uc_sign_after_amount', FALSE) ? '' : variable_get('uc_currency_sign', '$'),
     '#field_suffix' => variable_get('uc_sign_after_amount', FALSE) ? variable_get('uc_currency_sign', '$') : '',
   );
@@ -322,7 +329,7 @@ function _uc_varprice_feature_form($data = FALSE) {
     '#title' => t('Maximum price'),
     '#size' => 8,
     '#description' => t('The maximum price allowed for this product to be added to the cart.<br />Leave blank for no maximum.'),
-    '#default_value' => $data ? $data->price_maximum : '',
+    '#default_value' => $varprice_feature ? $varprice_feature->price_maximum : '',
     '#field_prefix' => variable_get('uc_sign_after_amount', FALSE) ? '' : variable_get('uc_currency_sign', '$'),
     '#field_suffix' => variable_get('uc_sign_after_amount', FALSE) ? variable_get('uc_currency_sign', '$') : '',
   );
@@ -336,30 +343,33 @@ function _uc_varprice_feature_form($data = FALSE) {
     '#type' => 'checkbox',
     '#title' => t('Override the title of the add to cart button.'),
     '#description' => t('Defaults to <em>Add to cart</em>. For multilingual sites, use <a href="!url">String Overrides</a> instead.', array('!url' => url('http://drupal.org/project/stringoverrides', array('absolute' => TRUE)))),
-    '#default_value' => $data ? !empty($data->add_to_cart_title) : FALSE,
-    '#attributes' => array('class' => 'override-checkbox'),
+    '#default_value' => $varprice_feature ? !empty($varprice_feature->add_to_cart_title) : FALSE,
+    '#attributes' => array('class' => array('override-checkbox')),
   );
   $form['titles']['add_to_cart_title'] = array(
     '#type' => 'textfield',
     '#title' => t('Add to cart button title'),
-    '#default_value' => $data && !empty($data->add_to_cart_title) ? $data->add_to_cart_title : t('Add to cart'),
+    '#default_value' => $varprice_feature && !empty($varprice_feature->add_to_cart_title) ? $varprice_feature->add_to_cart_title : t('Add to cart'),
   );
   $form['titles']['override_amount_title'] = array(
     '#type' => 'checkbox',
     '#title' => t('Override the title of the amount field for the price on the add to cart form.'),
     '#description' => t('Defaults to <em>Amount</em>. For multilingual sites, use <a href="!url">String Overrides</a> instead.', array('!url' => url('http://drupal.org/project/stringoverrides', array('absolute' => TRUE)))),
-    '#default_value' => $data ? !empty($data->amount_title) : FALSE,
-    '#attributes' => array('class' => 'override-checkbox'),
+    '#default_value' => $varprice_feature ? !empty($varprice_feature->amount_title) : FALSE,
+    '#attributes' => array('class' => array('override-checkbox')),
   );
   $form['titles']['amount_title'] = array(
     '#type' => 'textfield',
     '#title' => t('Amount field title'),
-    '#default_value' => $data && !empty($data->amount_title) ? $data->amount_title : t('Amount'),
+    '#default_value' => $varprice_feature && !empty($varprice_feature->amount_title) ? $varprice_feature->amount_title : t('Amount'),
   );
 
   return $form;
 }
 
+/**
+ * Creates the varprice feature in the database.
+ */
 function uc_varprice_feature_form_submit($form, &$form_state) {
   // Build an array of Variable Price data from the form submission.
   $vp_data = array(
@@ -399,30 +409,50 @@ function uc_varprice_feature_form_submit($form, &$form_state) {
 
   $form_state['redirect'] = uc_product_feature_save($data);
 
+  $vp_data['pfid'] = $data['pfid'];
+
   // Insert or update the data in the Variable Price products table.
-  if (empty($data['pfid'])) {
-    $vp_data['pfid'] = db_last_insert_id('uc_product_features', 'pfid');
-    $key = NULL;
-  }
-  else {
-    $vp_data['vpid'] = db_result(db_query("SELECT vpid FROM {uc_varprice_products} WHERE pfid = %d", $data['pfid']));
+  $key = array();
+  if ($vpid = _uc_varprice_get_vpid($vp_data['pfid'])) {
     $key = 'vpid';
+    $vp_data['vpid'] = $vpid;
   }
 
   drupal_write_record('uc_varprice_products', $vp_data, $key);
 }
 
-// Variable Price product feature delete function.
+/**
+ * Variable Price product feature delete function.
+ */
 function uc_varprice_feature_delete($feature) {
-  db_query("DELETE FROM {uc_varprice_products} WHERE pfid = %d", $feature['pfid']);
+  db_delete('uc_varprice_products')
+    ->condition('pfid', $feature['pfid'])
+    ->execute();
 }
 
 // Load the product feature data for a given node.
+/**
+ * @todo Please document this function.
+ * @see http://drupal.org/node/1354
+ */
 function uc_varprice_product_load($nid) {
-  return db_fetch_object(db_query("SELECT vp.* FROM {uc_product_features} AS pf LEFT JOIN {uc_varprice_products} AS vp ON pf.pfid = vp.pfid WHERE pf.fid = 'varprice' AND pf.nid = %d", $nid));
+  return db_query('SELECT vp.* FROM {uc_product_features} AS pf
+                   LEFT JOIN {uc_varprice_products} AS vp ON pf.pfid = vp.pfid
+                   WHERE pf.fid = :pf_fid AND pf.nid = :pf_nid',
+                  array(':pf_fid' => 'varprice', ':pf_nid' => $nid))->fetchObject();
 }
 
-// Theme the Qty. field for products in the shopping cart with variable prices.
-function theme_varprice_qty($element) {
+/**
+ * Theme the Qty. field for products in the shopping cart with variable prices.
+ */
+function theme_varprice_qty($variables) {
+  $element = $variables['form'];
   return $element['#default_value'];
+}
+
+/**
+ * Gets a uc_varprice id from a product feature id.
+ */
+function _uc_varprice_get_vpid($pfid) {
+  return db_query('SELECT vpid FROM {uc_varprice_products} WHERE pfid = :pfid', array(':pfid' => $pfid))->fetchField();
 }
