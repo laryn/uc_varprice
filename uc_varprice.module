@@ -70,7 +70,7 @@ function uc_varprice_form_alter(&$form, &$form_state, $form_id) {
       $data = unserialize($form['items'][$i]['data']['#value']);
 
       // If this item has a quantity restriction on it...
-      if ($data['varprice'] > 0) {
+      if (isset($data['varprice']) && $data['varprice'] > 0) {
         $form['items'][$i]['qty']['#type'] = 'value';
         $form['items'][$i]['qty']['#theme'] = 'varprice_qty';
       }
