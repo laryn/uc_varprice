@@ -17,6 +17,17 @@ function uc_varprice_theme() {
 }
 
 /**
+ * Implements hook_config_info().
+ */
+function uc_varprice_config_info() {
+  $prefixes['uc_varprice.settings'] = array(
+    'label' => t('Variable Price settings'),
+    'group' => t('Configuration'),
+  );
+  return $prefixes;
+}
+
+/**
  * Implements hook_form_alter().
  *
  * Summary of alterations:
@@ -51,15 +62,19 @@ function uc_varprice_form_alter(&$form, &$form_state, $form_id) {
       }
 
       // Add the amount textfield to the add to cart form.
+      // TODO This variable was probably removed in Backdrop without replacement.
+      // TODO This variable was probably removed in Backdrop without replacement.
+      // TODO This variable was probably removed in Backdrop without replacement.
+      // TODO This variable was probably removed in Backdrop without replacement.
       $form['varprice'] = array(
         '#type' => 'textfield',
         '#title' => $data && !empty($data->amount_title) ? $data->amount_title : t('Amount'),
         '#description' => implode('<br />', $description),
-        '#default_value' => $data ? $data->price_default : variable_get('uc_varprice_global_default', '0'),
+        '#default_value' => $data ? $data->price_default : config_get('uc_varprice.settings', 'uc_varprice_global_default'),
         '#size' => 8,
         '#weight' => -5,
         '#field_prefix' => variable_get('uc_sign_after_amount', FALSE) ? '' : variable_get('uc_currency_sign', '$'),
-        '#field_suffix' => variable_get('uc_sign_after_amount', FALSE) ? variable_get('uc_currency_sign', '$') : '',
+        '#field_suffix' => variable_get('uc_sign_after_amount', FALSE)?variable_get('uc_currency_sign', '$') : '',
       );
     }
   }
@@ -80,10 +95,11 @@ function uc_varprice_form_alter(&$form, &$form_state, $form_id) {
   // 4) Alter the product class form to set default donations.
   if ($form_id == 'uc_product_class_form') {
     // Add some helper JS to the form.
-    drupal_add_js(drupal_get_path('module', 'uc_varprice') . '/uc_varprice.js');
+    backdrop_add_js(backdrop_get_path('module', 'uc_varprice') . '/uc_varprice.js');
 
     $data = FALSE;
     if (!empty($form['pcid']['#value'])) {
+      // TODO This variable was probably removed in Backdrop without replacement.
       $class_defaults = variable_get('ucvp_class_def_' . $form['pcid']['#value'], array());
       if (!empty($class_defaults)) {
         $data = (object) unserialize($class_defaults);
@@ -100,7 +116,7 @@ function uc_varprice_form_alter(&$form, &$form_state, $form_id) {
     $form['varprice']['default_varprice'] = array(
       '#type' => 'checkbox',
       '#title' => t('Check this box to add a default product feature to every product of this class using these settings.'),
-      '#default_value' => $data === FALSE ? FALSE : TRUE,
+      '#default_value' => $data === FALSE?FALSE : TRUE,
     );
     $form['varprice'] += _uc_varprice_feature_form($data);
 
@@ -125,9 +141,11 @@ function uc_varprice_product_class_submit($form, &$form_state) {
       'amount_title' => $form_state['values']['override_amount_title'] ? $form_state['values']['amount_title'] : '',
     );
 
+    // TODO This variable was probably removed in Backdrop without replacement.
     variable_set('ucvp_class_def_' . $form_state['values']['pcid'], serialize($data));
   }
   else {
+    // TODO This variable was probably removed in Backdrop without replacement.
     variable_del('ucvp_class_def_' . $form_state['values']['pcid']);
   }
 }
@@ -154,6 +172,7 @@ function uc_varprice_node_view($node, $view_mode = 'full') {
  */
 function uc_varprice_node_insert($node) {
   if (uc_product_is_product($node)) {
+    // TODO This variable was probably removed in Backdrop without replacement.
     $data = variable_get('ucvp_class_def_' . $node->type, array());
 
     // If the product class has a default Variable Price product feature...
@@ -248,14 +267,18 @@ function uc_varprice_uc_product_feature() {
 function uc_varprice_settings() {
   $form = array();
 
+  // TODO This variable was probably removed in Backdrop without replacement.
+  // TODO This variable was probably removed in Backdrop without replacement.
+  // TODO This variable was probably removed in Backdrop without replacement.
+  // TODO This variable was probably removed in Backdrop without replacement.
   $form['uc_varprice_global_default'] = array(
     '#title' => t('Global default price'),
     '#type' => 'textfield',
     '#size' => 8,
     '#description' => t('The global default price for variable priced products; may be overridden at the product class or product level.'),
-    '#default_value' => variable_get('uc_varprice_global_default', '0'),
+    '#default_value' => config_get('uc_varprice.settings', 'uc_varprice_global_default'),
     '#field_prefix' => variable_get('uc_sign_after_amount', FALSE) ? '' : variable_get('uc_currency_sign', '$'),
-    '#field_suffix' => variable_get('uc_sign_after_amount', FALSE) ? variable_get('uc_currency_sign', '$') : '',
+    '#field_suffix' => variable_get('uc_sign_after_amount', FALSE)?variable_get('uc_currency_sign', '$') : '',
   );
 
   return $form;
@@ -266,7 +289,7 @@ function uc_varprice_settings() {
  */
 function uc_varprice_feature_form($form, &$form_state, $node, $feature) {
   // Add some helper JS to the form.
-  drupal_add_js(drupal_get_path('module', 'uc_varprice') . '/uc_varprice.js');
+  backdrop_add_js(backdrop_get_path('module', 'uc_varprice') . '/uc_varprice.js');
 
   // Load the Variable Price data specific to this product.
   if (!empty($feature)) {
@@ -275,7 +298,7 @@ function uc_varprice_feature_form($form, &$form_state, $node, $feature) {
   else {
     $varprice_feature = new stdClass();
     $varprice_feature->pfid = NULL;
-    $varprice_feature->price_default = variable_get('uc_varprice_global_default', '0');
+    $varprice_feature->price_default = config_get('uc_varprice.settings', 'uc_varprice_global_default');
     $varprice_feature->price_minimum = '';
     $varprice_feature->price_maximum = '';
     $varprice_feature->add_to_cart_title = t('Add to cart');
@@ -303,15 +326,23 @@ function _uc_varprice_feature_form($varprice_feature = FALSE) {
     '#type' => 'fieldset',
     '#title' => t('Price settings'),
   );
+  // TODO This variable was probably removed in Backdrop without replacement.
+  // TODO This variable was probably removed in Backdrop without replacement.
+  // TODO This variable was probably removed in Backdrop without replacement.
+  // TODO This variable was probably removed in Backdrop without replacement.
   $form['prices']['price_default'] = array(
     '#type' => 'textfield',
     '#title' => t('Default price'),
     '#size' => 8,
     '#description' => t('The default price for this variable priced products.'),
-    '#default_value' => $varprice_feature ? $varprice_feature->price_default : variable_get('uc_varprice_global_default', '0'),
+    '#default_value' => $varprice_feature ? $varprice_feature->price_default : config_get('uc_varprice.settings', 'uc_varprice_global_default'),
     '#field_prefix' => variable_get('uc_sign_after_amount', FALSE) ? '' : variable_get('uc_currency_sign', '$'),
-    '#field_suffix' => variable_get('uc_sign_after_amount', FALSE) ? variable_get('uc_currency_sign', '$') : '',
+    '#field_suffix' => variable_get('uc_sign_after_amount', FALSE)?variable_get('uc_currency_sign', '$') : '',
   );
+  // TODO This variable was probably removed in Backdrop without replacement.
+  // TODO This variable was probably removed in Backdrop without replacement.
+  // TODO This variable was probably removed in Backdrop without replacement.
+  // TODO This variable was probably removed in Backdrop without replacement.
   $form['prices']['price_minimum'] = array(
     '#type' => 'textfield',
     '#title' => t('Minimum price'),
@@ -319,8 +350,12 @@ function _uc_varprice_feature_form($varprice_feature = FALSE) {
     '#description' => t('The minimum price required for this product to be added to the cart.<br />Leave blank for no minimum.'),
     '#default_value' => $varprice_feature ? $varprice_feature->price_minimum : '',
     '#field_prefix' => variable_get('uc_sign_after_amount', FALSE) ? '' : variable_get('uc_currency_sign', '$'),
-    '#field_suffix' => variable_get('uc_sign_after_amount', FALSE) ? variable_get('uc_currency_sign', '$') : '',
+    '#field_suffix' => variable_get('uc_sign_after_amount', FALSE)?variable_get('uc_currency_sign', '$') : '',
   );
+  // TODO This variable was probably removed in Backdrop without replacement.
+  // TODO This variable was probably removed in Backdrop without replacement.
+  // TODO This variable was probably removed in Backdrop without replacement.
+  // TODO This variable was probably removed in Backdrop without replacement.
   $form['prices']['price_maximum'] = array(
     '#type' => 'textfield',
     '#title' => t('Maximum price'),
@@ -328,7 +363,7 @@ function _uc_varprice_feature_form($varprice_feature = FALSE) {
     '#description' => t('The maximum price allowed for this product to be added to the cart.<br />Leave blank for no maximum.'),
     '#default_value' => $varprice_feature ? $varprice_feature->price_maximum : '',
     '#field_prefix' => variable_get('uc_sign_after_amount', FALSE) ? '' : variable_get('uc_currency_sign', '$'),
-    '#field_suffix' => variable_get('uc_sign_after_amount', FALSE) ? variable_get('uc_currency_sign', '$') : '',
+    '#field_suffix' => variable_get('uc_sign_after_amount', FALSE)?variable_get('uc_currency_sign', '$') : '',
   );
 
   $form['titles'] = array(
@@ -415,7 +450,7 @@ function uc_varprice_feature_form_submit($form, &$form_state) {
     $vp_data['vpid'] = $vpid;
   }
 
-  drupal_write_record('uc_varprice_products', $vp_data, $key);
+  backdrop_write_record('uc_varprice_products', $vp_data, $key);
 }
 
 /**
