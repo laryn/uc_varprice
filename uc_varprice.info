@@ -1,4 +1,3 @@
-; $Id: uc_varprice.info,v 1.1 2009/05/15 21:40:04 rszrama Exp $
 name = Variable Price
 description = Defines a product feature to turn any product into a variable priced product.
 dependencies[] = uc_cart
@@ -8,5 +7,3 @@ package = Ubercart - extra
 backdrop = 1.x
 type = module
 php = 5.0
-
-
