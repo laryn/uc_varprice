@@ -76,6 +76,10 @@ function uc_varprice_form_alter(&$form, &$form_state, $form_id) {
         '#field_prefix' => variable_get('uc_sign_after_amount', FALSE) ? '' : variable_get('uc_currency_sign', '$'),
         '#field_suffix' => variable_get('uc_sign_after_amount', FALSE)?variable_get('uc_currency_sign', '$') : '',
       );
+
+      if (!empty($data->add_to_cart_title)) {
+        $form['actions']['submit']['#value'] = $data->add_to_cart_title;
+      }
     }
   }
 
